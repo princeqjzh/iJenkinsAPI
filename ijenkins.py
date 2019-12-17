@@ -1,7 +1,10 @@
 from library.httpclient import HTTPClient
 from library.constants import settings
 
+import logging
 import time
+import os
+import configparser
 
 timeout = settings.get("TIMEOUT")
 
@@ -10,12 +13,12 @@ class IJenkins(HTTPClient):
 
     def __init__(self, username, password, host, port, job_name):
         """
-
-        :param username:
-        :param password:
-        :param host:
-        :param port:
-        :param job_name:
+        Jenkins API Client Side Caller
+        :param username: Jenkins username, with job running permission (str)
+        :param password: Jenkins password (str)
+        :param host: Jenkins Server hostname or IP address (str)
+        :param port: Jenkins Server port (str)
+        :param job_name: Job name (str)
         """
         super().__init__()
         self.username = username
@@ -23,6 +26,9 @@ class IJenkins(HTTPClient):
         self.host = host
         self.port = port
         self.job_name = job_name
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s : %(message)s',
+                            datefmt='%a, %d %b %Y %H:%M:%S')
+        self.logger = logging.getLogger()
 
     def __get_last_build_number(self):
         """ Return the latest build number of the jenkins job """
@@ -60,7 +66,7 @@ class IJenkins(HTTPClient):
 
         # Start run build
         self.__run()
-        print(f'Start running the job {self.job_name}')
+        self.logger.info(f'Start running the job {self.job_name}')
         current_number = self.__get_last_build_number()
 
         # Check if the build run finished
@@ -70,24 +76,31 @@ class IJenkins(HTTPClient):
             current_number = self.__get_last_build_number()
             time.sleep(1)
             if time.time() - start >= timeout:
-                raise TimeoutError('Timeout Error')
+                raise TimeoutError(f'Get new build number timeout Error, timeout = {timeout}')
 
-        print(f'The new build instance number is {current_number}')
+        self.logger.info(f'The new build instance number is {current_number}')
         start = time.time()
         while self.__get_build_result(current_number).get('building'):
-            print(f'The {job_name}\'s building is on-going .....')
+            self.logger.info(f'The {job_name}\'s building is on-going .....')
             time.sleep(3)
             if time.time() - start >= timeout:
-                raise TimeoutError('Timeout Error')
+                raise TimeoutError(f'Run build timeout Error, timeout = {timeout}')
         result = self.__get_build_result(current_number).get('result')
-        print(f'The {job_name}\'s #{current_number} building result is {result}')
+        self.logger.info(f'The {job_name}\'s #{current_number} building result is {result}')
+
+
+def get_config():
+    config = configparser.ConfigParser()
+    config.read(os.path.join(os.environ['HOME'], 'ijenkins_config.ini'))
+    return config
 
 
 if __name__ == '__main__':
-    username = 'qa'
-    password = '111111aA'
-    host = 'localhost'
-    port = '8081'
-    job_name = 'TestEmail'
+    config = get_config()
+    username = config.get('jenkins', 'username')
+    password = config.get('jenkins', 'password')
+    host = config.get('jenkins', 'host')
+    port = config.get('jenkins', 'port')
+    job_name = config.get('jenkins', 'job_name')
     client = IJenkins(username, password, host, port, job_name)
     client.run_build()
