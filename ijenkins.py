@@ -1,5 +1,7 @@
 from library.httpclient import HTTPClient
 from library.constants import settings
+from jenkinsapi.jenkins import Jenkins
+from jenkinsapi.utils.crumb_requester import CrumbRequester
 
 import logging
 import time
@@ -54,11 +56,14 @@ class IJenkins(HTTPClient):
         return build_result
 
     def __run(self):
-        url = f'http://{self.username}:{self.password}@{self.host}:' \
-              f'{self.port}/job/{self.job_name}/build'
-        response = self.Post(url)
-        if response.status_code < 200 or response.status_code > 206:
-            raise ValueError('Response status code error for the run_build function.')
+        jenkins_url = f'http://{self.host}:{self.port}/'
+        crumb_requester = CrumbRequester(
+            baseurl=jenkins_url,
+            username=username,
+            password=password
+        )
+        server = Jenkins(jenkins_url, username=username, password=password, requester=crumb_requester)
+        server[job_name].invoke()
 
     def run_build(self):
         # Check the latest build number
@@ -73,8 +78,8 @@ class IJenkins(HTTPClient):
         start = time.time()
         while not current_number > old_number:
             # wait for the latest number update
-            current_number = self.__get_last_build_number()
             time.sleep(1)
+            current_number = self.__get_last_build_number()
             if time.time() - start >= timeout:
                 raise TimeoutError(f'Get new build number timeout Error, timeout = {timeout}')
 
@@ -102,5 +107,6 @@ if __name__ == '__main__':
     host = config.get('jenkins', 'host')
     port = config.get('jenkins', 'port')
     job_name = config.get('jenkins', 'job_name')
+
     client = IJenkins(username, password, host, port, job_name)
     client.run_build()
