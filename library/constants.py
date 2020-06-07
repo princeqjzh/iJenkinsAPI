@@ -1,3 +1,3 @@
 """ Constants parameter"""
 
-settings = dict(TIMEOUT=30, POLLING=0.5)
+settings = dict(TIMEOUT=25, POLLING=3)

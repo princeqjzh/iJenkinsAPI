@@ -1,7 +1,7 @@
 from library.httpclient import HTTPClient
-from library.constants import settings
 from jenkinsapi.jenkins import Jenkins
 from jenkinsapi.utils.crumb_requester import CrumbRequester
+from library.constants import settings
 
 import logging
 import time
@@ -80,16 +80,16 @@ class IJenkins(HTTPClient):
             # wait for the latest number update
             time.sleep(1)
             current_number = self.__get_last_build_number()
-            if time.time() - start >= timeout:
-                raise TimeoutError(f'Get new build number timeout Error, timeout = {timeout}')
+            if time.time() - start >= settings['TIMEOUT']:
+                raise TimeoutError(f'Get new build number timeout Error, timeout = {settings["TIMEOUT"]}')
 
         self.logger.info(f'The new build instance number is {current_number}')
         start = time.time()
         while self.__get_build_result(current_number).get('building'):
             self.logger.info(f'The {job_name}\'s building is on-going .....')
-            time.sleep(3)
+            time.sleep(settings['POLLING'])
             if time.time() - start >= timeout:
-                raise TimeoutError(f'Run build timeout Error, timeout = {timeout}')
+                raise TimeoutError(f'Run build timeout Error, timeout = {settings["TIMEOUT"]}')
         result = self.__get_build_result(current_number).get('result')
         self.logger.info(f'The {job_name}\'s #{current_number} building result is {result}')
 
