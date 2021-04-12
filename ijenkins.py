@@ -39,44 +39,44 @@ class IJenkins(HTTPClient):
         )
         self.server_api = Jenkins(jenkins_url, username=username, password=password, requester=crumb_requester)
 
-    def __get_last_build_number(self):
+    def get_last_build_number(self):
         """ Return the latest build number of the jenkins job """
 
         return self.server_api[self.job_name].get_last_build().get_number()
 
-    def __get_build_result(self, number):
+    def get_build_result(self, number):
 
         return self.server_api[self.job_name].get_build(number)
 
-    def __run(self):
+    def run(self):
         self.server_api[self.job_name].invoke()
 
     def run_build(self):
         # Check the latest build number
-        old_number = self.__get_last_build_number()
+        old_number = self.get_last_build_number()
 
         # Start run build
-        self.__run()
+        self.run()
         self.logger.info(f'Start running the job {self.job_name}')
-        current_number = self.__get_last_build_number()
+        current_number = self.get_last_build_number()
 
         # Check if the build run finished
         start = time.time()
         while not current_number > old_number:
             # wait for the latest number update
             time.sleep(1)
-            current_number = self.__get_last_build_number()
+            current_number = self.get_last_build_number()
             if time.time() - start >= settings['TIMEOUT']:
                 raise TimeoutError(f'Get new build number timeout Error, timeout = {settings["TIMEOUT"]}')
 
         self.logger.info(f'The new build instance number is {current_number}')
         start = time.time()
-        while self.__get_build_result(current_number).is_running():
+        while self.get_build_result(current_number).is_running():
             self.logger.info(f'The {job_name}\'s building is on-going .....')
             time.sleep(settings['POLLING'])
             if time.time() - start >= timeout:
                 raise TimeoutError(f'Run build timeout Error, timeout = {settings["TIMEOUT"]}')
-        result = self.__get_build_result(current_number).get_status()
+        result = self.get_build_result(current_number).get_status()
         self.logger.info(f'The {job_name}\'s #{current_number} building result is {result}')
 
 
